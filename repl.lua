@@ -7,8 +7,8 @@ local cprint = function(...)
 end
 
 if not readline then
-	readline = { readline = function()
-		io.write('> ')
+	readline = { readline = function( promt )
+		io.write( promt or '' )
 		local s = io.read()
 		return s
 	end }
@@ -24,7 +24,12 @@ local function processArg( arg, saved, ident )
 		elseif t == 'number' then
 			return ansicolors( '%{yellow}' .. tostring( arg ) .. '%{reset}')
 		elseif t == 'function' then
-			return ansicolors( '%{green}' .. tostring( arg ) .. '%{reset}' )
+			local info = debug.getinfo( arg )
+			if info.what == 'C' then
+				return ansicolors( '%{magenta}C-' .. tostring( arg ) .. '%{reset}' )
+			else
+				return ansicolors( '%{green}' .. tostring( arg ) .. '%{bright}/' .. info.nparams .. '%{reset}' )
+			end
 		elseif t == 'userdata' or t == 'thread' then
 			return ansicolors( '%{magenta}' .. tostring( arg ) .. '%{reset}' )
 		else -- if t == 'table'
@@ -62,9 +67,10 @@ local function processArg( arg, saved, ident )
 	end
 end
 
+local input, multiline = '', false
 while true do
 	ansicolors( '%{bright}' )
-	local input = readline.readline('> ')
+	input = input .. readline.readline(multiline and '>> ' or '> ')
 	ansicolors( '%{reset}' )
 
 	if input:sub(1,1) == '=' then
@@ -73,8 +79,14 @@ while true do
 	
 	local callable, err = loadstring( input )
 	if err then
-		cprint( ('%{red dim}Bad input: %{red bright}' .. err ))
+		if err:sub(-10) ~= [[near <eof>]] then
+			cprint( ('%{red dim}Bad input: %{red bright}' .. err ))
+			input, multiline = '', false
+		else
+			input, multiline = input .. '\n', true
+		end
 	else
+		input, multiline = '', false
 		local result = {pcall( callable )}
 		local n = #result
 		if result[1] == true then
