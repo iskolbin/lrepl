@@ -1,17 +1,30 @@
-local ansicolors = require'ansicolors'
---local readline = require'readline'
+local okansicolors,ansicolors = pcall( require, 'ansicolors' )
+local okreadline,readline = pcall( require, 'readline' )
+
+if not okansicolors then
+	print( 'Lua REPL by iskolbin' )
+	print( 'install ansicolors for better experience (luarocks install ansicolors)' )
+	ansicolors = function(...)
+		return table.concat{...}
+	end
+else
+	print( ansicolors( '%{bright}Lua %{yellow}R%{green}E%{cyan}P%{magenta}L %{dim red}by %{bright white}iskolbin%{reset}' ))
+end
 
 local cprint = function(...) 
 	print( ansicolors( ... ))
 	ansicolors('%{reset}')
 end
 
-if not readline then
+if not okreadline then
+	print( 'install readline for better experience (luarocks install readline)')
 	readline = { readline = function( promt )
 		io.write( promt or '' )
 		local s = io.read()
 		return s
 	end }
+else
+	print( 'readline installed' )
 end
 
 local function processArg( arg, saved, ident )
