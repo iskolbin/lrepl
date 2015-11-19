@@ -1,5 +1,6 @@
 local okansicolors,ansicolors = pcall( require, 'ansicolors' )
 local okreadline,readline = pcall( require, 'readline' )
+local C
 
 if not okansicolors then
 	print( 'Lua REPL by iskolbin' )
@@ -7,13 +8,10 @@ if not okansicolors then
 	ansicolors = function(...)
 		return table.concat{...}
 	end
+	C = function() return '' end
 else
-	print( ansicolors( '%{bright}Lua %{yellow}R%{green}E%{cyan}P%{magenta}L %{dim red}by %{bright white}iskolbin%{reset}' ))
-end
-
-local cprint = function(...) 
-	print( ansicolors( ... ))
-	ansicolors('%{reset}')
+	C = function(s) return s end
+	print( ansicolors( C'%{bright white}' .. 'Lua ' .. C'%{yellow}' .. 'REPL '.. '%{white}' .. 'by iskolbin' .. C'%{reset}' ))
 end
 
 if not okreadline then
@@ -23,37 +21,35 @@ if not okreadline then
 		local s = io.read()
 		return s
 	end }
-else
-	print( 'readline installed' )
 end
 
 local function processArg( arg, saved, ident )
 	if arg == nil or arg == true or arg == false then
-		return ansicolors( '%{cyan}'.. tostring( arg ) .. '%{reset}' )
+		return ansicolors( C'%{cyan}'.. tostring( arg ) .. C'%{reset}' )
 	else
 		local t = type( arg )
 		if t == 'string' then
-			return ansicolors( '%{bright blue}' .. tostring( arg ) .. '%{reset}' )
+			return ansicolors( C'%{bright blue}' .. tostring( arg ) .. C'%{reset}' )
 		elseif t == 'number' then
-			return ansicolors( '%{yellow}' .. tostring( arg ) .. '%{reset}')
+			return ansicolors( C'%{yellow}' .. tostring( arg ) .. C'%{reset}')
 		elseif t == 'function' then
 			local info = debug.getinfo( arg )
 			if info.what == 'C' then
-				return ansicolors( '%{magenta}C-' .. tostring( arg ) .. '%{reset}' )
+				return ansicolors( C'%{magenta}' .. 'C-function' .. C'%{reset}' )
 			else
-				return ansicolors( '%{green}' .. tostring( arg ) .. '%{bright}/' .. info.nparams .. '%{reset}' )
+				return ansicolors( C'%{green}' .. 'function' .. C'%{bright}' .. '/' .. info.nparams .. C'%{reset}' )
 			end
 		elseif t == 'userdata' or t == 'thread' then
-			return ansicolors( '%{magenta}' .. tostring( arg ) .. '%{reset}' )
+			return ansicolors( C'%{magenta}' .. tostring( arg ) .. C'%{reset}' )
 		else -- if t == 'table'
 			if saved[arg] then
-				return ansicolors( '%{bright}__REC__')
+				return ansicolors( C'%{bright}' .. '__REC__')
 			else
 				saved[arg] = arg
 				
 				local mt = getmetatable( arg )
 				if mt ~= nil and mt.__tostring then
-					return '%{bright}' .. mt.__tostring( arg ) .. '%{reset}'
+					return C'%{bright}' .. mt.__tostring( arg ) .. C'%{reset}'
 				end
 				
 				local ret = {}
@@ -82,9 +78,9 @@ end
 
 local input, multiline = '', false
 while true do
-	ansicolors( '%{bright}' )
+	ansicolors( C'%{bright}' )
 	input = input .. readline.readline(multiline and '>> ' or '> ')
-	ansicolors( '%{reset}' )
+	ansicolors( C'%{reset}' )
 
 	if input:sub(1,1) == '=' then
 		input = 'return ' .. input:sub(2)
@@ -93,7 +89,7 @@ while true do
 	local callable, err = loadstring( input )
 	if err then
 		if err:sub(-10) ~= [[near <eof>]] then
-			cprint( ('%{red dim}Bad input: %{red bright}' .. err ))
+			print( ansicolors(C'%{red dim}' .. 'Bad input: ' .. C'%{red bright}' .. err .. '%{reset}') )
 			input, multiline = '', false
 		else
 			input, multiline = input .. '\n', true
@@ -104,16 +100,16 @@ while true do
 		local n = #result
 		if result[1] == true then
 			if n == 1 then
-				cprint( '%{green dim}Ok' )
+				print( ansicolors( C'%{green dim}' .. 'Ok' .. C'%{reset}' ))
 			elseif n == 2 then
-				cprint('%{dim}' .. processArg(result[2],{},0))
+				print( ansicolors (C'%{dim}' .. processArg(result[2],{},0) .. '%{reset}'))
 			else
 				for i = 2, n do
-					cprint( '%{bright}' .. (i-1) .. ': %{dim}' .. processArg(result[i],{},0))
+					print( ansicolors(C'%{dim}' .. (i-1) .. ': ' .. C'%{bright}' .. processArg(result[i],{},0) .. '%{reset}'))
 				end
 			end
 		else
-			cprint(('%{red dim}Error: %{red bright}' .. result[2] ))
+			print(ansicolors( C'%{red dim}' .. 'Error: ' .. C'%{red bright}' .. result[2] ))
 		end
 	end
 end
