@@ -14,6 +14,8 @@ else
 	print( ansicolors( C'%{bright white}' .. 'Lua ' .. C'%{yellow}' .. 'REPL '.. '%{white}' .. 'by iskolbin' .. C'%{reset}' ))
 end
 
+print( ansicolors( C'%{dim}' .. _VERSION .. C'%{reset}' ))
+
 if not okreadline then
 	print( 'install readline for better experience (luarocks install readline)')
 	readline = { readline = function( promt )
@@ -76,6 +78,18 @@ local function processArg( arg, saved, ident )
 	end
 end
 
+local mem = collectgarbage'count'
+local x = {}
+local tablesize = collectgarbage'count' - mem
+x[1] = 0
+local itemsize = collectgarbage'count' - mem - tablesize
+mem = collectgarbage'count'
+x = {z = 0}
+local hashsize = collectgarbage'count' - mem - tablesize
+x = nil
+
+print('tablesize', 1024*tablesize, 'indexsize', 1024*itemsize, 'hashsize', 1024*hashsize )
+
 local input, multiline = '', false
 while true do
 	ansicolors( C'%{bright}' )
@@ -96,17 +110,22 @@ while true do
 		end
 	else
 		input, multiline = '', false
+		local t0 = os.clock()
+		local mem = collectgarbage'count'
 		local result = {pcall( callable )}
+		local mem1 = collectgarbage'count'
+		local runtime = ('\t%s[%g s][%g B]'):format( C'%{white dim}', os.clock() - t0, 1024*( mem1 - mem - tablesize - itemsize*#result))
 		local n = #result
 		if result[1] == true then
 			if n == 1 then
-				print( ansicolors( C'%{green dim}' .. 'Ok' .. C'%{reset}' ))
+				print( ansicolors( C'%{green dim}' .. 'Ok'  .. runtime .. C'%{reset}' ))
 			elseif n == 2 then
-				print( ansicolors (C'%{dim}' .. processArg(result[2],{},0) .. '%{reset}'))
+				print( ansicolors (C'%{dim}' .. processArg(result[2],{},0) .. runtime .. '%{reset}'))
 			else
-				for i = 2, n do
+				for i = 2, n-1 do
 					print( ansicolors(C'%{dim}' .. (i-1) .. ': ' .. C'%{bright}' .. processArg(result[i],{},0) .. '%{reset}'))
 				end
+				print( ansicolors(C'%{dim}' .. (n-1) .. ': ' .. C'%{bright}' .. processArg(result[n],{},0) .. runtime .. '%{reset}'))
 			end
 		else
 			print(ansicolors( C'%{red dim}' .. 'Error: ' .. C'%{red bright}' .. result[2] ))
