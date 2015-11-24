@@ -111,6 +111,22 @@ end
 
 linenoise.setcompletion( completion )
 
+local function formatmem( kb )
+	if math.abs(kb) < 1024 then
+		return ('%d b'):format( kb )
+	elseif math.abs(kb) < 1024^2 then
+		v = kb / 1024
+		print(v)
+		return math.floor(v) == v and ('%d Kb'):format( v ) or ('%.1f Kb'):format( v )
+	elseif math.abs(kb) < 1024^3 then
+		v = kb / 1024 / 1024
+		return math.floor(v) == v and ('%d Mb'):format( v ) or ('%.1f Mb'):format( v )
+	else
+		v = kb / 1024 / 1024 / 1024
+		return math.floor(v) == v and ('%d Gb'):format( v ) or ('%.1f Gb'):format( v )
+	end
+end
+
 local input, multiline = '', false
 while true do
 	ansicolors( C'%{bright}' )
@@ -137,7 +153,8 @@ while true do
 		local mem = collectgarbage'count'
 		local result = {pcall( callable )}
 		local mem1 = collectgarbage'count'
-		local runtime = ('\t%s[%g s][%g B]'):format( C'%{white dim}', os.clock() - t0, 1024*( mem1 - mem - tablesize - itemsize*#result))
+		local dmem = 1024*(mem1 - mem - tablesize - itemsize*#result)
+		local runtime = ('\t%s[%g s][%s]'):format( C'%{white dim}', os.clock() - t0, formatmem( dmem ))
 		local n = #result
 		if result[1] == true then
 			if n == 1 then
