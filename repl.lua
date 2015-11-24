@@ -1,5 +1,5 @@
 local okansicolors,ansicolors = pcall( require, 'ansicolors' )
-local okreadline,readline = pcall( require, 'readline' )
+local oklinenoise,linenoise = pcall( require, 'linenoise' )
 local C
 
 if not okansicolors then
@@ -16,13 +16,13 @@ end
 
 print( ansicolors( C'%{dim}' .. _VERSION .. C'%{reset}' ))
 
-if not okreadline then
-	print( 'install readline for better experience (luarocks install readline)')
-	readline = { readline = function( promt )
+if not oklinenoise then
+	print( 'install linenoise for better experience (luarocks install linenoise)')
+	linenoise = { linenoise = function( promt )
 		io.write( promt or '' )
 		local s = io.read()
 		return s
-	end }
+	end, historyadd = function() end, setcompletion = function() end, }
 end
 
 local function processArg( arg, saved, ident )
@@ -90,10 +90,31 @@ x = nil
 
 print('tablesize', 1024*tablesize, 'indexsize', 1024*itemsize, 'hashsize', 1024*hashsize )
 
+
+local function completion( c, s )
+	local t = _G
+	local path =''
+	local ret = s:sub(1,1) == '='
+	for tk in s:gmatch'([_%a][_%w]+)%.' do
+		if t[tk] then
+			path = tk .. '.'
+			t = t[tk]
+		end
+	end
+
+	for k,v in pairs( t ) do
+		if ((ret and '=' or '')..path..k):sub(1,#s) == s then
+			linenoise.addcompletion( c, (ret and '=' or '')..path .. k )
+		end
+	end
+end
+
+linenoise.setcompletion( completion )
+
 local input, multiline = '', false
 while true do
 	ansicolors( C'%{bright}' )
-	input = input .. readline.readline(multiline and '>> ' or '> ')
+	input = input .. linenoise.linenoise(multiline and '>> ' or '> ')
 	ansicolors( C'%{reset}' )
 
 	if input:sub(1,1) == '=' then
@@ -104,11 +125,13 @@ while true do
 	if err then
 		if err:sub(-10) ~= [[near <eof>]] then
 			print( ansicolors(C'%{red dim}' .. 'Bad input: ' .. C'%{red bright}' .. err .. '%{reset}') )
+			linenoise.historyadd( input )
 			input, multiline = '', false
 		else
 			input, multiline = input .. '\n', true
 		end
 	else
+		linenoise.historyadd( input )
 		input, multiline = '', false
 		local t0 = os.clock()
 		local mem = collectgarbage'count'
