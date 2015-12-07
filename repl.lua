@@ -1,5 +1,6 @@
 local okansicolors,ansicolors = pcall( require, 'ansicolors' )
 local oklinenoise,linenoise = pcall( require, 'linenoise' )
+local load = load or loadstring
 local C
 
 if not okansicolors then
@@ -14,8 +15,6 @@ else
 	print( ansicolors( C'%{bright white}' .. 'Lua ' .. C'%{yellow}' .. 'REPL '.. '%{white}' .. 'by iskolbin' .. C'%{reset}' ))
 end
 
-print( ansicolors( C'%{dim}' .. _VERSION .. C'%{reset}' ))
-
 if not oklinenoise then
 	print( 'install linenoise for better experience (luarocks install linenoise)')
 	linenoise = { linenoise = function( promt )
@@ -24,6 +23,10 @@ if not oklinenoise then
 		return s
 	end, historyadd = function() end, setcompletion = function() end, }
 end
+
+local jitver = jit and (' (' .. C'%{red bright}' .. jit.version .. '/' .. jit.arch .. '/' .. jit.os .. C'%{reset}' .. ')') or ''
+
+print( ansicolors( C'%{dim}' .. _VERSION .. jitver .. C'%{reset}' ))
 
 local function processArg( arg, saved, ident )
 	if arg == nil or arg == true or arg == false then
@@ -88,8 +91,7 @@ x = {z = 0}
 local hashsize = collectgarbage'count' - mem - tablesize
 x = nil
 
-print('tablesize', 1024*tablesize, 'indexsize', 1024*itemsize, 'hashsize', 1024*hashsize )
-
+--print('tablesize', 1024*tablesize, 'indexsize', 1024*itemsize, 'hashsize', 1024*hashsize )
 
 local function completion( c, s )
 	local t = _G
@@ -116,7 +118,6 @@ local function formatmem( kb )
 		return ('%d b'):format( kb )
 	elseif math.abs(kb) < 1024^2 then
 		v = kb / 1024
-		print(v)
 		return math.floor(v) == v and ('%d Kb'):format( v ) or ('%.1f Kb'):format( v )
 	elseif math.abs(kb) < 1024^3 then
 		v = kb / 1024 / 1024
@@ -126,6 +127,11 @@ local function formatmem( kb )
 		return math.floor(v) == v and ('%d Gb'):format( v ) or ('%.1f Gb'):format( v )
 	end
 end
+
+local stacktrace = ''
+local function savetrace(err) 
+	stacktrace = debug.traceback(err) or '' 
+end 
 
 local input, multiline = '', false
 while true do
@@ -137,10 +143,10 @@ while true do
 		input = 'return ' .. input:sub(2)
 	end
 	
-	local callable, err = loadstring( input )
+	local callable, err = load( input )
 	if err then
 		if err:sub(-10) ~= [[near <eof>]] then
-			print( ansicolors(C'%{red dim}' .. 'Bad input: ' .. C'%{red bright}' .. err .. '%{reset}') )
+			print( ansicolors(C'%{red dim}' .. 'Bad input: ' .. C'%{red bright}' .. err .. C'%{reset}') )
 			linenoise.historyadd( input )
 			input, multiline = '', false
 		else
@@ -151,7 +157,7 @@ while true do
 		input, multiline = '', false
 		local t0 = os.clock()
 		local mem = collectgarbage'count'
-		local result = {pcall( callable )}
+		local result = {xpcall( callable, savetrace )}
 		local mem1 = collectgarbage'count'
 		local dmem = 1024*(mem1 - mem - tablesize - itemsize*#result)
 		local runtime = ('\t%s[%g s][%s]'):format( C'%{white dim}', os.clock() - t0, formatmem( dmem ))
@@ -160,15 +166,15 @@ while true do
 			if n == 1 then
 				print( ansicolors( C'%{green dim}' .. 'Ok'  .. runtime .. C'%{reset}' ))
 			elseif n == 2 then
-				print( ansicolors (C'%{dim}' .. processArg(result[2],{},0) .. runtime .. '%{reset}'))
+				print( ansicolors (C'%{dim}' .. processArg(result[2],{},0) .. runtime .. C'%{reset}'))
 			else
 				for i = 2, n-1 do
-					print( ansicolors(C'%{dim}' .. (i-1) .. ': ' .. C'%{bright}' .. processArg(result[i],{},0) .. '%{reset}'))
+					print( ansicolors(C'%{dim}' .. (i-1) .. ': ' .. C'%{bright}' .. processArg(result[i],{},0) .. C'%{reset}'))
 				end
-				print( ansicolors(C'%{dim}' .. (n-1) .. ': ' .. C'%{bright}' .. processArg(result[n],{},0) .. runtime .. '%{reset}'))
+				print( ansicolors(C'%{dim}' .. (n-1) .. ': ' .. C'%{bright}' .. processArg(result[n],{},0) .. runtime .. C'%{reset}'))
 			end
 		else
-			print(ansicolors( C'%{red dim}' .. 'Error: ' .. C'%{red bright}' .. result[2] ))
+			print( ansicolors( C'%{red dim}' .. 'Error: ' .. C'%{red bright}' .. '\n' .. stacktrace ))
 		end
 	end
 end
