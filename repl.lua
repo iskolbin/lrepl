@@ -114,6 +114,7 @@ end
 linenoise.setcompletion( completion )
 
 local function formatmem( kb )
+	local v
 	if math.abs(kb) < 1024 then
 		return ('%d b'):format( kb )
 	elseif math.abs(kb) < 1024^2 then
