@@ -24,6 +24,7 @@ if not oklinenoise then
 	end, historyadd = function() end, setcompletion = function() end, }
 end
 
+local jit = _G.jit
 local jitver = jit and (' (' .. C'%{red bright}' .. jit.version .. '/' .. jit.arch .. '/' .. jit.os .. C'%{reset}' .. ')') or ''
 
 print( ansicolors( C'%{dim}' .. _VERSION .. jitver .. C'%{reset}' ))
@@ -81,17 +82,12 @@ local function processArg( arg, saved, ident )
 	end
 end
 
-local mem = collectgarbage'count'
-local x = {}
-local tablesize = collectgarbage'count' - mem
-x[1] = 0
-local itemsize = collectgarbage'count' - mem - tablesize
-mem = collectgarbage'count'
-x = {z = 0}
-local hashsize = collectgarbage'count' - mem - tablesize
-x = nil
-
---print('tablesize', 1024*tablesize, 'indexsize', 1024*itemsize, 'hashsize', 1024*hashsize )
+local initial = collectgarbage'count'
+local _ = {}
+local tablesize = collectgarbage'count' - initial
+_[1] = 0
+local itemsize = collectgarbage'count' - initial - tablesize
+_ = nil
 
 local function completion( c, s )
 	local t = _G
@@ -104,7 +100,7 @@ local function completion( c, s )
 		end
 	end
 
-	for k,v in pairs( t ) do
+	for k, _ in pairs( t ) do
 		if ((ret and '=' or '')..path..k):sub(1,#s) == s then
 			linenoise.addcompletion( c, (ret and '=' or '')..path .. k )
 		end
@@ -157,10 +153,10 @@ while true do
 		linenoise.historyadd( input )
 		input, multiline = '', false
 		local t0 = os.clock()
-		local mem = collectgarbage'count'
+		local mem0 = collectgarbage'count'
 		local result = {xpcall( callable, savetrace )}
 		local mem1 = collectgarbage'count'
-		local dmem = 1024*(mem1 - mem - tablesize - itemsize*#result)
+		local dmem = 1024*(mem1 - mem0 - tablesize - itemsize*#result)
 		local runtime = ('\t%s[%g s][%s]'):format( C'%{white dim}', os.clock() - t0, formatmem( dmem ))
 		local n = #result
 		if result[1] == true then
